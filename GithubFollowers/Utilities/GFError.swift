@@ -1,8 +1,8 @@
 //
-//  ErrorMessage.swift
+//  GFError.swift
 //  GithubFollowers
 //
-//  Created by Marko Meden on 27. 02. 24.
+//  Created by Marko Meden on 2. 03. 24.
 //
 
 import Foundation
