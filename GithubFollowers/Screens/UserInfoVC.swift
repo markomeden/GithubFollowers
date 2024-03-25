@@ -55,15 +55,16 @@ class UserInfoVC: GFDataLoadingVC {
     
     
     func getUserInfo() {
-        NetworkManager.shared.getUserInfo(for: username) { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-                case .success(let user):
-                    DispatchQueue.main.async { self.configureUIElements(with: user) }
-                    
-                case .failure(let error):
-                    print(error)
+        Task {
+            do {
+                let user = try await NetworkManager.shared.getUserInfo(for: username)
+                configureUIElements(with: user)
+            } catch {
+                if let gfError = error as? GFError {
+                    self.presentGFAlert(title: "Something went wrong", message: gfError.rawValue, buttonTitle: "Ok")
+                } else {
+                    self.presentDefaultError()
+                }
             }
         }
     }
@@ -127,7 +128,7 @@ extension UserInfoVC: GFRepoItemVCDelegate {
     
     func didTapGithubProfile(for user: User) {
         guard let url = URL(string: user.htmlUrl) else {
-            presentGFAlertOnMainThread(title: "Invalid URL", message: "The url attached to this user is invalid.", buttonTitle: "Ok")
+            presentGFAlert(title: "Invalid URL", message: "The url attached to this user is invalid.", buttonTitle: "Ok")
             return
         }
         
@@ -140,7 +141,7 @@ extension UserInfoVC: GFFollowerItemVCDelegate {
     
     func didTapGetFollowers(for user: User) {
         guard user.followers != 0 else {
-            presentGFAlertOnMainThread(title: "No followers", message: "This user has no followers. What a shame 😮‍💨", buttonTitle: "So sad")
+            presentGFAlert(title: "No followers", message: "This user has no followers. What a shame 😮‍💨", buttonTitle: "So sad")
             return
         }
         

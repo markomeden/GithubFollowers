@@ -83,19 +83,36 @@ class FollowerListVC: GFDataLoadingVC {
     
     func getFollowers(username: String, page: Int) {
         showLoadingView()
-        NetworkManager.shared.getFollowers(for: username, page: page) { [weak self] result in
-            
-            guard let self = self else { return }
-            self.dismissLoadingView()
-            
-            switch result {
-                case .success(let followers):
-                    self.updateUI(with: followers)
-                    
-                case .failure(let error):
-                    self.presentGFAlertOnMainThread(title: "Bad Stuff Happened", message: error.rawValue, buttonTitle: "Ok")
+        isLoadingMoreFollowers = true
+        
+        Task {
+            do {
+                let followers = try await NetworkManager.shared.getFollowers(for: username, page: page)
+                updateUI(with: followers)
+                dismissLoadingView()
+                isLoadingMoreFollowers = false
+            } catch {
+                if let gfError = error as? GFError {
+                    presentGFAlert(title: "Bad Stuff Happened", message: gfError.rawValue, buttonTitle: "Ok")
+                } else {
+                    presentDefaultError()
+                }
+                
+                dismissLoadingView()
+                isLoadingMoreFollowers = false
             }
         }
+            
+            
+            /// in case we dont care about specific errors
+    //        guard let followers = try? await NetworkManager.shared.getFollowers(for: username, page: page) else {
+    //            presentDefaultError()
+    //            dismissLoadingView()
+    //            return
+    //        }
+    //
+    //        updateUI(with: followers)
+    //        dismissLoadingView()
     }
     
     
@@ -132,21 +149,21 @@ class FollowerListVC: GFDataLoadingVC {
     
     @objc func addButtonTapped() {
         showLoadingView()
-        isLoadingMoreFollowers = true
         
-        NetworkManager.shared.getUserInfo(for: username) { [weak self] result in
-            guard let self = self else { return }
-            self.dismissLoadingView()
-            
-            switch result {
-                case .success(let user):
-                    self.addUserToFavorites(user: user)
+        Task {
+            do {
+                let user = try await NetworkManager.shared.getUserInfo(for: username)
+                addUserToFavorites(user: user)
+                dismissLoadingView()
+            } catch {
+                if let gfError = error as? GFError {
+                    presentGFAlert(title: "Something Went Wrong", message: gfError.rawValue, buttonTitle: "Ok")
+                } else {
+                    presentDefaultError()
+                }
                     
-                case .failure(let error):
-                    self.presentGFAlertOnMainThread(title: "Something went wrong", message: error.rawValue, buttonTitle: "Ok")
+                dismissLoadingView()
             }
-            
-            self.isLoadingMoreFollowers = false
         }
     }
     
@@ -157,10 +174,15 @@ class FollowerListVC: GFDataLoadingVC {
         PersistenceManager.updateWith(favorite: favorite, actionType: .add) { [weak self] error in
             guard let self = self else { return }
             guard let error = error else {
-                self.presentGFAlertOnMainThread(title: "Success!", message: "You have successfully favorited this user 🎉", buttonTitle: "Hooray!")
+                DispatchQueue.main.async {
+                    self.presentGFAlert(title: "Success!", message: "You have successfully favorited this user 🎉", buttonTitle: "Hooray!")
+                }
+                
                 return
             }
-            self.presentGFAlertOnMainThread(title: "Something went wrong", message: error.rawValue, buttonTitle: "Ok")
+            DispatchQueue.main.async {
+                self.presentGFAlert(title: "Something went wrong", message: error.rawValue, buttonTitle: "Ok")
+            }
         }
     }
 }
