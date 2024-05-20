@@ -54,6 +54,21 @@ class FollowerListVC: GFDataLoadingVC {
     }
     
     
+    override func updateContentUnavailableConfiguration(using state: UIContentUnavailableConfigurationState) {
+        if followers.isEmpty && !isLoadingMoreFollowers {
+            var config = UIContentUnavailableConfiguration.empty()
+            config.image = .init(systemName: "person.slash")
+            config.text = "No Followers"
+            config.secondaryText = "This user has no followers. Go follow them!"
+            contentUnavailableConfiguration = config
+        } else if isSearching && filteredFollowers.isEmpty {
+            contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        } else {
+            contentUnavailableConfiguration = nil
+        }
+    }
+    
+    
     func configureViewController() {
         view.backgroundColor = .systemBackground
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -102,31 +117,14 @@ class FollowerListVC: GFDataLoadingVC {
                 isLoadingMoreFollowers = false
             }
         }
-            
-            
-            /// in case we dont care about specific errors
-    //        guard let followers = try? await NetworkManager.shared.getFollowers(for: username, page: page) else {
-    //            presentDefaultError()
-    //            dismissLoadingView()
-    //            return
-    //        }
-    //
-    //        updateUI(with: followers)
-    //        dismissLoadingView()
     }
     
     
     func updateUI(with followers: [Follower]) {
         if followers.count < 100 { self.hasMoreFollowers = false }
         self.followers.append(contentsOf: followers)
-        
-        if followers.isEmpty {
-            let message = "This user doesn't have any followers. Go follow them 🤣."
-            DispatchQueue.main.async { self.showEmptyStateView(with: message, in: self.view) }
-            return
-        }
-        
         self.updateData(on: self.followers)
+        setNeedsUpdateContentUnavailableConfiguration()
     }
     
     
@@ -229,6 +227,7 @@ extension FollowerListVC: UISearchResultsUpdating, UISearchBarDelegate {
         isSearching = true
         filteredFollowers = followers.filter { $0.login.lowercased().contains(filter.lowercased()) }
         updateData(on: filteredFollowers)
+        setNeedsUpdateContentUnavailableConfiguration()
     }
 }
 
